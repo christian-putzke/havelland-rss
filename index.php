@@ -1,6 +1,7 @@
 <?php
 
 	date_default_timezone_set('UTC');
+	libxml_use_internal_errors(true);
 	
 	$baseUrl = 'https://www.havelland.de';
 	$url = $baseUrl . '/presse/';
@@ -24,21 +25,36 @@
 			$newsDoc = new DOMDocument();
 			$newsDoc->loadHTMLFile($newsUrl);
 
-			$newsContent;
-			$newsDescription;
+			$newsContent = "";
+			$newsDescription = "";
+			$image = "";
 
 			$containers = $newsDoc->getElementsByTagName('div');
 			foreach ($containers as $container) {
 				$containerClass = $container->getAttribute('class');
 
-				// Extract news description
-				if ($containerClass == "news-text-wrap hide") {
-					$newsDescription = $container->nodeValue;
-				}
-
-				// Extract news content
+				// Extract news content and description
 				if ($containerClass == "news-text-wrap") {
-					$newsContent = $container->nodeValue;
+					foreach ($container->childNodes as $newsParagraph) {
+						if (empty($newsDescription)) {
+							$newsDescription = $newsParagraph->nodeValue;
+						}
+						
+						$newsContent .= $newsParagraph->nodeValue . "\n\n";
+					}
+					
+					break;
+				}
+			}
+
+			$newsLinks = $newsDoc->getElementsByTagName('a');
+			foreach ($newsLinks as $newsLink) {
+				$newsLinkClass = $newsLink->getAttribute('class');
+
+				// Extract the first lightbox image url
+				if ($newsLinkClass == "lightbox") {
+					$image = $baseUrl . $newsLink->getAttribute('href');
+					break;
 				}
 			}
 
@@ -54,10 +70,13 @@
 			$feed[$newsIndex]['content'] = $newsContent;
 			$feed[$newsIndex]['date'] = $newsDate;
 
+			if (!empty($image)) {
+				$feed[$newsIndex]['image'] = $image;
+			}
+
 			$newsIndex ++;
 		}
 	}
-
 
 	// build the XML RSS2.0 document which will be rendered in the end
 	$xml = new XMLWriter();
@@ -73,10 +92,9 @@
 			$xml->writeAttribute('version', '2.0');
 
 			$xml->startElement("channel");
-				$xml->writeElement('title', "Havelland Aktuell (inoffiziell)");
-				$xml->writeElement('description', "Der inoffizielle Havelland Aktuell RSS Feed");
+				$xml->writeElement('title', "Havelland Aktuell Presse");
+				$xml->writeElement('description', "Havelland Aktuell Presse RSS Feed");
 				$xml->writeElement('link', "https://www.havelland.de");
-				$xml->writeElement('atom:link', "https://havelland.graviox.de");
 				$xml->writeElement('lastBuildDate', date("D, d M Y H:i:s e", time()));
 				$xml->writeElement('generator', "https://www.christian-putzke.de");
 				$xml->writeElement('language', "de");
@@ -89,6 +107,13 @@
 						$xml->writeElement('description', $feedItem["description"]);
 						$xml->writeElement('pubDate', date("D, d M Y H:i:s e", $feedItem["date"]));
 						$xml->writeElement('guid', $feedItem["id"]);
+
+						if (array_key_exists('image', $feedItem)) {
+							$xml->startElement("image");
+								$xml->writeElement('url', $feedItem["image"]);
+							$xml->endElement();
+						}
+
 						$xml->startElement("content:encoded");
 							$xml->writeCData($feedItem["content"]);
 						$xml->endElement();
