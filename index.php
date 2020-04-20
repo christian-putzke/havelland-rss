@@ -1,51 +1,63 @@
 <?php
 
 	date_default_timezone_set('UTC');
+	
+	$baseUrl = 'https://www.havelland.de';
+	$url = $baseUrl . '/presse/';
 
-	require "vendor/autoload.php";
+	$doc = new DOMDocument();
+	$doc->loadHTMLFile($url);
 
-	use PHPHtmlParser\Dom;
-	 
-	$url = 'https://www.havelland.de';
-
-	// fetch the havelland start page
-	$dom = new Dom;
-	$dom->loadFromUrl($url);
-
-	$content = $dom->find('.news')[1];
-
+	$links = $doc->getElementsByTagName('a');
 	$newsIndex = 0;
 	$feed;
 
-	// extract the preview snippets for the most recent news items
-	foreach($content->find('.c-text-teaser a.c-link') as $newsLink)
-	{
-		// extract the URL to the news item
-		$newsUrl = $url . $newsLink->href;
-		$newsUrlParts = explode('/', $newsUrl);
+	foreach ($links as $link) {
+		$linkClass = $link->getAttribute('class');
 
-		// fetch the whole content of the news item
-		$newsDom = new Dom;
-		$newsDom->loadFromUrl($newsUrl);
+		// Only process news links
+		if (strpos($linkClass, "c-news-list__link") !== false) {
+			$newsUrl = $baseUrl . $link->getAttribute('href');
+			$newsUrlParts = explode('/', $newsUrl);
 
-		// filter for the actual interesting contents
-		$article = $newsDom->find('.article');
-		$newsHeader = $article->find('.news-header h2');
-		$newsContent = $article->find('.news-text-wrap');
+			// Fetch the entire content of the news item
+			$newsDoc = new DOMDocument();
+			$newsDoc->loadHTMLFile($newsUrl);
 
-		// extract the publish date
-		$newsDate = strtotime($article->find('.news-list-date time')->getAttribute('datetime'));
+			$newsContent;
+			$newsDescription;
 
-		// build the feed array and extract all relevant data 
-		$feed[$newsIndex]['id'] = $newsUrlParts[8];
-		$feed[$newsIndex]['link'] = $newsUrl;
-		$feed[$newsIndex]['title'] = $newsHeader->innerHtml;
-		$feed[$newsIndex]['description'] = $newsContent[0]->find('p')->innerHtml;
-		$feed[$newsIndex]['content'] = $newsContent[1]->innerHtml;
-		$feed[$newsIndex]['date'] = $newsDate;
+			$containers = $newsDoc->getElementsByTagName('div');
+			foreach ($containers as $container) {
+				$containerClass = $container->getAttribute('class');
 
-		$newsIndex ++;
+				// Extract news description
+				if ($containerClass == "news-text-wrap hide") {
+					$newsDescription = $container->nodeValue;
+				}
+
+				// Extract news content
+				if ($containerClass == "news-text-wrap") {
+					$newsContent = $container->nodeValue;
+				}
+			}
+
+			// Extract news publish date
+			$time = $newsDoc->getElementsByTagName('time');
+			$newsDate = strtotime($time[0]->getAttribute('datetime'));
+
+			// build the feed array and extract all relevant data
+			$feed[$newsIndex]['id'] = $newsUrlParts[8];
+			$feed[$newsIndex]['link'] = $newsUrl;
+			$feed[$newsIndex]['title'] = $newsDoc->getElementsByTagName('h2')[0]->nodeValue;
+			$feed[$newsIndex]['description'] = $newsDescription;
+			$feed[$newsIndex]['content'] = $newsContent;
+			$feed[$newsIndex]['date'] = $newsDate;
+
+			$newsIndex ++;
+		}
 	}
+
 
 	// build the XML RSS2.0 document which will be rendered in the end
 	$xml = new XMLWriter();
