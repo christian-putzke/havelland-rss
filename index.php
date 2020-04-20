@@ -40,7 +40,7 @@
 							$newsDescription = $newsParagraph->nodeValue;
 						}
 						
-						$newsContent .= $newsParagraph->nodeValue . "\n\n";
+						$newsContent .= "<p>" . $newsParagraph->nodeValue . "</p>";
 					}
 					
 					break;
@@ -53,7 +53,8 @@
 
 				// Extract the first lightbox image url
 				if ($newsLinkClass == "lightbox") {
-					$image = $baseUrl . $newsLink->getAttribute('href');
+					$imageUrl = $baseUrl . $newsLink->getAttribute('href');
+					$newsContent = '<img src="' . $imageUrl . '" />' . $newsContent;
 					break;
 				}
 			}
@@ -69,10 +70,6 @@
 			$feed[$newsIndex]['description'] = $newsDescription;
 			$feed[$newsIndex]['content'] = $newsContent;
 			$feed[$newsIndex]['date'] = $newsDate;
-
-			if (!empty($image)) {
-				$feed[$newsIndex]['image'] = $image;
-			}
 
 			$newsIndex ++;
 		}
@@ -92,8 +89,8 @@
 			$xml->writeAttribute('version', '2.0');
 
 			$xml->startElement("channel");
-				$xml->writeElement('title', "Havelland Aktuell Presse");
-				$xml->writeElement('description', "Havelland Aktuell Presse RSS Feed");
+				$xml->writeElement('title', "Havelland Aktuell (Presse)");
+				$xml->writeElement('description', "Havelland Aktuell (Presse) RSS Feed");
 				$xml->writeElement('link', "https://www.havelland.de");
 				$xml->writeElement('lastBuildDate', date("D, d M Y H:i:s e", time()));
 				$xml->writeElement('generator', "https://www.christian-putzke.de");
@@ -107,13 +104,6 @@
 						$xml->writeElement('description', $feedItem["description"]);
 						$xml->writeElement('pubDate', date("D, d M Y H:i:s e", $feedItem["date"]));
 						$xml->writeElement('guid', $feedItem["id"]);
-
-						if (array_key_exists('image', $feedItem)) {
-							$xml->startElement("image");
-								$xml->writeElement('url', $feedItem["image"]);
-							$xml->endElement();
-						}
-
 						$xml->startElement("content:encoded");
 							$xml->writeCData($feedItem["content"]);
 						$xml->endElement();
