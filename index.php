@@ -26,7 +26,6 @@
 			$newsDoc->loadHTMLFile($newsUrl);
 
 			$newsContent = "";
-			$newsDescription = "";
 			$image = "";
 
 			$containers = $newsDoc->getElementsByTagName('div');
@@ -35,14 +34,7 @@
 
 				// Extract news content and description
 				if ($containerClass == "news-text-wrap") {
-					foreach ($container->childNodes as $newsParagraph) {
-						if (empty($newsDescription)) {
-							$newsDescription = $newsParagraph->nodeValue;
-						}
-						
-						$newsContent .= "<p>" . $newsParagraph->nodeValue . "</p>";
-					}
-					
+					$newsContent = $newsDoc->saveXML($container);
 					break;
 				}
 			}
@@ -67,7 +59,6 @@
 			$feed[$newsIndex]['id'] = $newsUrlParts[8];
 			$feed[$newsIndex]['link'] = $newsUrl;
 			$feed[$newsIndex]['title'] = $newsDoc->getElementsByTagName('h2')[0]->nodeValue;
-			$feed[$newsIndex]['description'] = $newsDescription;
 			$feed[$newsIndex]['content'] = $newsContent;
 			$feed[$newsIndex]['date'] = $newsDate;
 
@@ -101,7 +92,6 @@
 					$xml->startElement("item");
 						$xml->writeElement('title', $feedItem["title"]);
 						$xml->writeElement('link', $feedItem["link"]);
-						$xml->writeElement('description', $feedItem["description"]);
 						$xml->writeElement('pubDate', date("D, d M Y H:i:s e", $feedItem["date"]));
 						$xml->writeElement('guid', $feedItem["id"]);
 						$xml->startElement("content:encoded");
