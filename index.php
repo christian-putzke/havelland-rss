@@ -34,7 +34,8 @@
 
 				// Extract news content and description
 				if ($containerClass == "news-text-wrap") {
-					$newsContent = $newsDoc->saveXML($container);
+					$newsContentReplace = ["\n","\t","<![CDATA[","]]"];
+					$newsContent = str_replace($newsContentReplace, "", $newsDoc->saveXML($container));
 					break;
 				}
 			}
